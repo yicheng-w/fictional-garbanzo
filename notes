@@ -1,0 +1,30 @@
+python3 encode_dataset.py \
+    --ptb_vocab_loc data/ptb.vocab.json \
+    --create_data \
+    --load-checkpoint /home/yicheng-wang/CS-Stuff/machine_learning/Sentence-VAE/bin/2020-May-01-16:42:07/E9.pytorch \
+    --data_dir 20newsgroups \
+    -ls 4
+    
+    
+========
+
+
+
+python build_sentiment_data.py --sentiment_dir ../fictional-garbanzo/aclImdb/test/ --output_dir sentiment_data --percentage 1.0
+
+========
+
+
+encoded_results.hdf5
+
+
+so the mesh size is x ** hidden_size, so if hidden_size is 16 this thing explodes a lot... 
+
+let us instead try to set the hidden_size to a much lower size (like 3), and see if it works
+
+
+python src/config.py --model_name 20newsgroups-actual --dataset 20newsgroups \
+    --input_file /home/yicheng-wang/CS-Stuff/machine_learning/Sentence-VAE/20newsgroup_test_points.txt\
+    --prediction_file 20newsgroups_preds.hdf \
+    --at_step 3000 \
+    --mode predict
