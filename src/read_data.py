@@ -100,6 +100,16 @@ class DataSet(object):
             yield self.get_by_idxs(idx_slice, batch_size, pad_to_full_batch)
 
 def create_twenty_newsgroup_data(config):
+    if config.input_file:
+        train = DataSet([], "train")
+        data = []
+        with open(config.input_file, 'r') as in_file:
+            for row in in_file:
+                data.append((nltk.word_tokenize(row), 0))
+        print(len(data))
+        valid = DataSet(data, "valid")
+        test = DataSet(data, "test")
+        return train, valid, test
     train = fetch_20newsgroups(subset='train', remove=('headers', 'footers'))
     test = fetch_20newsgroups(subset='test', remove=('headers', 'footers'))
 

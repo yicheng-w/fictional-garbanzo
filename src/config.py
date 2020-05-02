@@ -91,6 +91,8 @@ flags.DEFINE_integer("tfidf_layer", 1, "layers of tfidf selection")
 
 flags.DEFINE_string("prediction_file", "", "predctionFile")
 
+flags.DEFINE_string("input_file", "", "input")
+
 
 def main(_):
     print(argv)
