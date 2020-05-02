@@ -130,14 +130,22 @@ def create_imdb_data(config):
             with open(os.path.join(root, 'pos', filename), 'r') as in_f:
                 a = in_f.read()
             a = a.encode("utf-8")
-            data.append(a)
-            labels.append(1)
+            for para in a.split('\n'):
+                if len(para) == 0:
+                    continue
+                else:
+                    data.append(para)
+                    labels.append(1)
         for filename in os.listdir(os.path.join(root, 'neg')):
             with open(os.path.join(root, 'neg', filename), 'r') as in_f:
                 a = in_f.read()
             a = a.encode("utf-8")
-            data.append(a)
-            labels.append(0)
+            for para in a.split('\n'):
+                if len(para) == 0:
+                    continue
+                else:
+                    data.append(para)
+                    labels.append(0)
 
         return data, labels
 
@@ -170,5 +178,4 @@ def create_imdb_data(config):
 
     return DataSet(train_split, "train"), DataSet(dev_split, "dev"), \
         DataSet(test_processed, "test")
-
 

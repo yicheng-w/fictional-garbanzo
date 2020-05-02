@@ -89,6 +89,8 @@ flags.DEFINE_integer('eval_num', -1, 'evaluate on subset of dev')
 
 flags.DEFINE_integer("tfidf_layer", 1, "layers of tfidf selection")
 
+flags.DEFINE_string("prediction_file", "", "predctionFile")
+
 
 def main(_):
     print(argv)

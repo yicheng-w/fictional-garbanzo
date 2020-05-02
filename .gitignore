@@ -127,3 +127,15 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+*.h5f
+*.joblib
+
+data/
+env/
+aclImdb/
+out/
+logs/
+
+.*.un~
+*.swp

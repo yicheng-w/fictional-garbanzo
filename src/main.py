@@ -1,4 +1,5 @@
 import os
+import h5py
 import tensorflow as tf
 import numpy as np
 from math import exp
@@ -28,6 +29,8 @@ def main(config):
         _train(config)
     elif config.mode == 'test':
         _test(config)
+    elif config.mode == 'predict':
+        _predict(config)
     else:
         raise ValueError("Invalid Mode!")
 
@@ -179,6 +182,8 @@ def _test(config):
     if not config.use_dev:
         valid_data = test_data
 
+    print(len(valid_data.data))
+
     print("Data loaded!")
 
     #construct model
@@ -207,3 +212,56 @@ def _test(config):
 
     print("Done!")
 
+def _predict(config):
+    print("Predicting!")
+
+    out_dir = os.path.join(config.out_root, config.model_name)
+
+    vocab_loc = os.path.join(out_dir, "vocab.pkl")
+    if os.path.exists(vocab_loc): # vocab exists!
+        vocab = restore_vocab(vocab_loc)
+    else:
+        raise Exception("Not valid output directory! No vocab found!")
+
+    print("Vocab built! Size (%d)" % vocab.size())
+
+    if config.dataset == "imdb":
+        train_data, valid_data, test_data = create_imdb_data(config)
+    else:
+        train_data, valid_data, test_data = create_twenty_newsgroup_data(config)
+
+    if not config.use_dev:
+        valid_data = test_data
+
+    print(len(valid_data.data))
+    print("Data loaded!")
+
+    #construct model
+    model = UsedModel(config, vocab, 2 if config.dataset == 'imdb' else 20)
+
+    gpu_configuration = gpu_config()
+    sess = tf.Session(config=gpu_configuration)
+    with sess.as_default():
+        model.build_graph()
+        print("Graph built!")
+        model.add_train_op()
+        print("Train op added!")
+
+    sess.run(tf.global_variables_initializer())
+
+    if config.use_ckpt is not None:
+        model.restore_from(sess, os.path.join(out_dir, 'ckpts', config.use_ckpt))
+    elif config.at_step is not None:
+        restore_from_step(config, model, sess, config.at_step)
+    else:
+        raise ValueError("Must specify a ckpt to restore from!")
+
+    predictions, _ = generate_predictions(config, valid_data, vocab, model,
+            sess)
+
+    np_preds = np.asarray(predictions)
+    print(np_preds.shape)
+
+    out_file = h5py.File(config.prediction_file, 'w')
+    out_file.create_dataset("predictions", data=np_preds)
+    out_file.close()

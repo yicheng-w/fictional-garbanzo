@@ -17,6 +17,19 @@ import random
 import json
 
 def eval_model(config, valid_data, vocab, model, sess):
+    model_preds, eval_losses = generate_predictions(config, valid_data, vocab,
+            model, sess)
+
+    accuracy = []
+
+    for i, p in enumerate(model_preds):
+        accuracy.append(1 if valid_data.data[i][1] == p else 0)
+
+    accuracy = float(sum(accuracy)) / len(accuracy)
+
+    return accuracy
+
+def generate_predictions(config, valid_data, vocab, model, sess):
     model_preds = []
     eval_losses = []
 
@@ -33,147 +46,8 @@ def eval_model(config, valid_data, vocab, model, sess):
     model_preds = model_preds[:valid_data.num_examples]
     eval_losses = avg(eval_losses[:valid_data.num_examples])
 
-    accuracy = []
+    return model_preds, eval_losses
 
-    for i, p in enumerate(model_preds):
-        accuracy.append(1 if valid_data.data[i][1] == p else 0)
-
-    accuracy = float(sum(accuracy)) / len(accuracy)
-
-    return accuracy
-
-def eval_multiple_choice_dataset(config, valid_data, vocab, model, sess):
-    predictions = gen_mc_preds(config, valid_data, vocab, model, sess)
-
-    total = 0
-    correct = 0
-
-    correctness_dict = {}
-
-    for datapt in valid_data.data:
-        data_id = datapt['data_id']
-        pred = predictions[data_id]
-        ans = datapt['orig_answer']
-
-        total += 1
-        if pred == ans:
-            correct += 1
-            correctness_dict[data_id] = 1
-        else:
-            correctness_dict[data_id] = 0
-
-    with open("%s-wikihop-preds.json" % config.model_name, 'w') as f:
-        json.dump(predictions, f)
-
-    return float(correct) / total
-
-def eval_dataset(config, valid_data, vocab, model, sess):
-    model_preds = []
-    ground_truths = []
-    memories = []
-    questions = []
-    commonsense = []
-
-    total_eval_loss = []
-
-    batch_obj = enumerate(valid_data.get_batches(config.batch_size,
-        shuffle=False, pad_to_full_batch=True))
-    
-    if config.show_eval_progress:
-        batch_obj = tqdm(batch_obj)
-
-    for i,eval_batches in batch_obj:
-        is_training = False
-
-        if config.sample != -1 and i > config.sample:
-            break
-
-        ground_truths.extend(map(
-            lambda item: [item['answer1'], item['answer2']],
-            eval_batches))
-        memories.extend(map(lambda item: item['summary'],
-            eval_batches))
-        questions.extend(map(lambda item: item['ques'],
-            eval_batches))
-        if config.load_commonsense:
-            commonsense.extend(map(lambda item: item['commonsense'],
-                eval_batches))
-
-
-        fd = model.encode(eval_batches, is_training)
-        oovs = model.get_batch_oov()
-
-        eval_loss, preds = model.eval(sess, fd)
-
-        model_preds.extend(map(lambda p: translate(p, vocab, oovs),
-            preds))
-
-        total_eval_loss.append(eval_loss)
-
-    model_preds = model_preds[:valid_data.num_examples]
-    ground_truths = ground_truths[:valid_data.num_examples]
-
-    eval_loss = avg(total_eval_loss)
-
-    bleu1, bleu4, meteor, rouge, cider,\
-        bleu1_scores, bleu4_scores, meteor_scores, rouge_scores, cider_scores =\
-            eval_set(model_preds, ground_truths)
-
-    if config.to_print_nums == -1:
-        to_print_indices = range(len(model_preds))
-
-    else:
-        to_print_indices = random.sample(range(len(model_preds)),
-            config.to_print_nums)
-
-    for idx in to_print_indices:
-        print("Data %d" % idx)
-        print("Summary: ", " ".join(memories[idx]))
-        if config.load_commonsense:
-            print("Commonsense: ")
-            for path in commonsense[idx]:
-                for concept in path:
-                    print concept, "->", 
-                print ""
-        print("Question: ", " ".join(questions[idx]))
-        print("Answer1: ", " ".join(ground_truths[idx][0]))
-        print("Answer2: ", " ".join(ground_truths[idx][1]))
-        print("Predicted: ", " ".join(model_preds[idx]))
-        print("Bleu1: %.3f, Bleu4: %.3f, Rouge-L: %.3f, Meteor: %.3f, CIDEr: %.3f" %
-                (bleu1_scores[idx], bleu4_scores[idx], rouge_scores[idx],
-                    meteor_scores[idx], cider_scores[idx]))
-
-        print ""
-        print("=" * 80)
-        print ""
-
-    return bleu1, bleu4, meteor, rouge, cider, eval_loss, model_preds
-
-def eval_set(predictions, ground_truth):
-    word_target = ground_truth # nested list of answers, each expressed as list of tokens
-    word_response = predictions # nested list of preds, each expressed as list of word
-
-    assert len(word_target) == len(word_response)
-
-    word_target_dict = dict(enumerate(
-        map(lambda item: map(lambda s: " ".join(s), item),
-            word_target)))
-    word_response_dict = dict(enumerate(map(lambda item: [" ".join(item)],
-        word_response)))
-
-    bleu_score, bleu_scores = bleu_obj.compute_score(
-            word_target_dict, word_response_dict)
-    bleu1_score, _, _, bleu4_score = bleu_score
-    bleu1_scores, _, _, bleu4_scores = bleu_scores
-    meteor_score, meteor_scores = meteor_obj.compute_score(
-            word_target_dict, word_response_dict) 
-    rouge_score, rouge_scores = rouge_obj.compute_score(
-            word_target_dict, word_response_dict) 
-    cider_score, cider_scores = cider_obj.compute_score(
-            word_target_dict, word_response_dict) 
-
-    return bleu1_score, bleu4_score, meteor_score, rouge_score, cider_score,\
-        bleu1_scores, bleu4_scores, meteor_scores, rouge_scores, cider_scores
 
 def write_summaries(sess, summary_handler, loss, eval_loss, bleu_1, bleu_4,
         meteor, rouge, cider, iteration):
